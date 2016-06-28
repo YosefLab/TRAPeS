@@ -1,3 +1,4 @@
+# TRAPeS
 
 We present TRAPeS (TCR Reconstruction Algorithm for Paired-End Single-cell), a software for reconstruction of T cell receptors (TCR) using short, paired-end single-cell RNA-sequencing. <br />  
 
@@ -81,13 +82,13 @@ To display help: <br />
 <br />
 In addition, in each single cell folder you can find the following output files: <br />
 <br />
--	output.alpha/beta.junctions.txt : The set of V-J pairs found (before reconstruction) <br />
--	output.reconstructed.junctions.alpha/beta.fa : the set of reconstructed junction. If reconstruction was unsuccessful, the partial V and J reconstructions will be separated by N’s. <br />
--	output.alpha/beta.mapped.and.unammed.fa : the set of the putative CDR3-originating reads used for the reconstruction.  <br />
--	output.alpha/beta.R1/R2.fa : Set of paired-end reads that are aligned to the reconstructed TCRs in order to quantify the expression of each TCR using RSEM. <br />
--	output.alpha/beta.rsem.out* : The output files created by RSEM. <br />
--	output.alpha/beta.full.TCRs.fa : Fasta file with the full TCR sequences. <br />
--	output.alpha/beta.full.TCRs.bestIso.fa : Fasta file with the full sequences of the TCRs, after choosing only the highly expressed isoform in case of more than one isoform for the V/J/C segments. <br />
+-	output.\[alpha/beta\].junctions.txt : The set of V-J pairs found (before reconstruction) <br />
+-	output.reconstructed.junctions.\[alpha/beta\].fa : the set of reconstructed junction. If reconstruction was unsuccessful, the partial V and J reconstructions will be separated by N’s. <br />
+-	output.\[alpha/beta\].mapped.and.unammed.fa : the set of the putative CDR3-originating reads used for the reconstruction.  <br />
+-	output.\[alpha/beta\].\[R1/R2\].fa : Set of paired-end reads that are aligned to the reconstructed TCRs in order to quantify the expression of each TCR using RSEM. <br />
+-	output.\[alpha/beta\].rsem.out* : The output files created by RSEM. <br />
+-	output.\[alpha/beta\].full.TCRs.fa : Fasta file with the full TCR sequences. <br />
+-	output.\[alpha/beta\].full.TCRs.bestIso.fa : Fasta file with the full sequences of the TCRs, after choosing only the highly expressed isoform in case of more than one isoform for the V/J/C segments. <br />
 -	output.summary.txt : Summary of all the reconstructed chains in this cell. <br />
 
 <br /><br />
