@@ -445,7 +445,10 @@ def writeChain(outF, chain,cdrDict,rsemF, bamF, fastaDict, unDict, output, idNam
         else:
             isProd = False
         fLine = chain + '\t' + cdrDict[tcr]['stat'] + '\t'
-        rank = getRank(tcr, rsemDict, unRsemDict, isProd, noRsem)
+        if noRsem:
+            rank = 'NA'
+        else:
+            rank = getRank(tcr, rsemDict, unRsemDict, isProd, noRsem)
         fLine += str(rank) + '\t'
         nameArr = tcr.split('.')
         fLine += nameArr[0] + '\t' + nameArr[1] + '\t' + nameArr[2] + '\t'
