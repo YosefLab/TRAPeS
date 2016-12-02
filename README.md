@@ -17,6 +17,7 @@ In addition, TRAPeS requires the following software:  <br />
 
 -	bowtie2  <br />
 -	RSEM  <br />
+- samtools <br />
 
 ### before running TRAPeS  <br />
 TRAPeS takes as input mapped and unmapped files of reads after genomic alignment (e.g. using TopHat).<br />
@@ -63,9 +64,11 @@ To display help: <br />
 
 **Paths to other software:** <br />
 <br />
--bowtie2 : Path to bowtie2. If not used assumed bowtie2 is in the default PATH <br />
+-bowtie2 : Path to bowtie2. If not used assumes bowtie2 is in the default PATH <br />
 
--rsem: Path to bowtie2. If not used assumed bowtie2 is in the default PATH <br />
+-rsem: Path to RSEM. If not used assumes RSEM is in the default PATH <br />
+
+-samtools: Path to samtools. If not used assumes samtools is in the default PATH <br />
 <br />
 **Other parameters:** <br />
 <br />
