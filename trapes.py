@@ -13,7 +13,7 @@ from Bio.Alphabet import IUPAC
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
-def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ):
+def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
@@ -51,7 +51,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
                     aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ)
+                            minOverlap, rsem, bowtie2, lowQ, samtools)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -200,7 +200,7 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ):
+                  rsem, bowtie2, lowQ, samtools):
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
@@ -232,7 +232,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         outDir = output[:outDirInd+1]
     else:
         outDir = os.getcwd()
-    runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output)
+    runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
@@ -1037,7 +1037,10 @@ def findBestC(vjArr, rsemF):
         return vjArr[0]
 
 
-def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output):
+def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools):
+    if samtools != '':
+        if samtools[-1] != '/':
+            rsem += '/'
     rsemIndDir = outDir + 'rsem_ind'
     if os.path.exists(rsemIndDir) == False:
         os.makedirs(rsemIndDir)
@@ -1060,6 +1063,14 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output):
             subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q',
                              '--bowtie2', '--bowtie2-mismatch-rate', '0.0', '--paired-end', output + '.alpha.R1.fa',
                              output + '.alpha.R2.fa', rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
+        unsortedBam = output + '.alpha.rsem.out.transcript.bam'
+        if not os.path.exists(unsortedBam):
+            print "RSEM did not produce any transcript alignment files for alpha chain, please check the -rsem parameter"
+        else:
+            sortedBam = output + '.alpha.rsem.out.transcript.sorted.bam'
+            if not os.path.exists(sortedBam):
+                subprocess.call([samtools + 'samtools', 'sort','-o',sortedBam, unsortedBam])
+                subprocess.call([samtools + 'samtools', 'index', sortedBam])
 
     else:
         sys.stdout.write(str(datetime.datetime.now()) + " Did not reconstruct any alpha chains, not running RSEM on alpha\n")
@@ -1077,6 +1088,14 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output):
             subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q', '--bowtie2',
                               '--bowtie2-mismatch-rate', '0.0', '--paired-end', output + '.beta.R1.fa', output + '.beta.R2.fa',
                              rsemIndDir + '/VDJ.beta.seq', output + '.beta.rsem.out'])
+        unsortedBam = output + '.beta.rsem.out.transcript.bam'
+        if not os.path.exists(unsortedBam):
+            print "RSEM did not produce any transcript alignment files for beta chain, please check the -rsem parameter"
+        else:
+            sortedBam = output + '.beta.rsem.out.transcript.sorted.bam'
+            if not os.path.exists(sortedBam):
+                subprocess.call([samtools + 'samtools', 'sort','-o',sortedBam, unsortedBam])
+                subprocess.call([samtools + 'samtools', 'index', sortedBam])
     else:
         sys.stdout.write(str(datetime.datetime.now()) + " Did not reconstruct any beta chains, not running RSEM on beta\n")
         sys.stdout.flush()
@@ -1661,11 +1680,12 @@ if __name__ == '__main__':
     parser.add_argument('-bases','-b','-B', help='Number of bases to take from each V and J segments, default is min(len(V), len(J) ', type=int, default=-10)
     parser.add_argument('-iterations','-iter','-i','-I', help='Number of iterations for the reconstruction'
                                                               'algorithm, default is 20', type=int, default=20)
+    parser.add_argument('-samtools', help='Path to samtools. If not used assumes that samtools is in the default path', default = '')
     parser.add_argument('-score','-sc','-SC', help='Alignment score threshold. Default is 15', type=int, default=15)
     parser.add_argument('-overlap','-ol','-OL', help='Number of minimum bases that overlaps V and J ends,'
                                                               'default is 10', type=int, default=10)
     args = parser.parse_args()
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
-                  args.singleCell, args.path, args.sumF, args.lowQ)
+                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools)
 
