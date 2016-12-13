@@ -50,6 +50,17 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     bed = currFolder + 'Data/mm10/mm10.TCR.bed'
                     mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
                     aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
+                if genome == 'mm10_ncbi':
+                    fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
+                    bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
+                    mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
+                    aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
+                if genome == 'hg19':
+                    fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
+                    bed = currFolder + 'Data/hg19/hg19.TCR.bed'
+                    mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
+                    aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
+
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
                             minOverlap, rsem, bowtie2, lowQ, samtools)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
@@ -1641,8 +1652,8 @@ def makeIdNameDict(mapping):
 
 
 def checkParameters(genome, strand, singleCell, path, sumF):
-    if ((genome != 'hg38') & (genome != 'mm10')):
-        sys.exit("-genome only accept \'mm10\' or \'hg38\'")
+    if ((genome != 'hg38') & (genome != 'mm10') & (genome != 'hg19') & (genome != 'mm10_ncbi')):
+        sys.exit("-genome only accept one of the following: mm10, mm10_ncbi, hg38, hg19")
     if strand.lower() not in ['none','minus','plus']:
         sys.exit("-strand should be one of: none, minus, plus")
     if not singleCell:
