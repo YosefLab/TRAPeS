@@ -60,6 +60,13 @@ To display help: <br />
 -bases : Number of bases from the V and the J segments that will be used as the initial template for the reconstruction. Default is min(length(V), length(J)). <br />
 
 -lowQ	 : By default, the putative CDR3-originating reads are identified as unmapped reads whose mate is aligned to the V/J/C segments. However, those reads can by chance be mapped to other places in the genome (usually low quality mapping). By including the –lowQ tag the set of CDR3-origintating reads will also include the reads that map to other places in the genome. We recommend using this tag. <br />
+
+-top: Rank all the V-J pairs based on the number of mapped reads, and reconstruct only the top X number of V-J pairs. Default: reconstruct all V-J pairs. Recommended for very deep libraries or libraries when there are many possible V-J pairing. <br />
+
+-byExp: Must be used along with the top parameter. Rank all the V-J pairs based on the number of mapped reads, but instead of reconstructing only the top X number of V-J pairs, randomly choose 2 V-J pairs with the same rank (same number of mapped reads) and reconstruct them. Then TRAPeS will move on to the next rank until the number of V-J pairs specified with top has been reconstructed. Default: off. <br />
+
+-readOverlap: Consider only reads with that number of bases overlapping V/J/C segments as mapped reads. Default: 1. Note: This parameter is still being tested <br />
+
 <br />
 
 **Paths to other software:** <br />
@@ -74,7 +81,7 @@ To display help: <br />
 <br />
 -singleCell : Add this tag if you are only running TRAPeS on a single cell (not a library of many single cells). Currently not active <br />
 
--genome : The genome used for genomic alignment. Currently only hg38 or mm10 are supported <br />
+-genome : The genome used for genomic alignment. Currently only hg38 or mm10 are supported. For mm10 with NCBI chromosome naming use mm10_ncbi. <br />
 
 -strand : Strand orientation of the reads, options are [minus, plus, none]. For transcripts on the positive strand, to which strand does the rightmost (in genomic coordinates) mate of the read map to. Default is minus. <br />
 <br /><br />
