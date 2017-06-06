@@ -1139,7 +1139,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cI
             jEns = idArr[1].split('(')[0]
             vSeq = fastaDict[vEns]
             jSeq = fastaDict[jEns]
-            writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF)
+            writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict)
         elif oneSide:
             curSeq = tcrSeq.split('NNNN')[0]
             jSeg = findBestJforSeq(curSeq,fastaDict,mapDict)
@@ -1152,12 +1152,12 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cI
                 vSeq = fastaDict[vEns]
                 for jEns in jSeg:
                     jSeq = fastaDict[jEns]
-                    writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF)
+                    writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict)
     tcrF.close()
     if found == True:
         outF.close()
 
-def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF):
+def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF,fastaDict):
     vSeqTrim = ''
     jSeqTrim = ''
     if bases == -10:
