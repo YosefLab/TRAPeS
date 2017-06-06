@@ -6,6 +6,7 @@ import subprocess
 import datetime
 from Bio import SeqIO
 import pysam
+import operator
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
@@ -13,7 +14,7 @@ from Bio.Alphabet import IUPAC
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
-def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
+def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, top, byExp, readOverlap, oneSide):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
@@ -62,7 +63,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
 
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools)
+                            minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -211,16 +212,16 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools):
+                  rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide):
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
+    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top, byExp, readOverlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
     sys.stdout.flush()
-    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
+    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top, byExp, readOverlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
@@ -232,10 +233,12 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     sys.stdout.flush()
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.alpha.fa'
-    createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict)
+    (cSeq, cName, cId) = getCInfo(vdjDict['Alpha']['C'][0],idNameDict, fastaDict)
+    createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict, cSeq, cName, cId, oneSide)
     fullTcrFileBeta = output + '.beta.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.beta.fa'
-    createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
+    (cSeq, cName, cId) = getCInfo(vdjDict['Beta']['C'][0],idNameDict, fastaDict)
+    createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict, cSeq, cName, cId, oneSide)
     sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     sys.stdout.flush()
     outDirInd = output.rfind('/')
@@ -473,7 +476,9 @@ def writeChain(outF, chain,cdrDict,rsemF, bamF, fastaDict, unDict, output, idNam
             if cInd == -1:
                 sys.stderr.write(str(datetime.datetime.now()) + 'Error! could not find C segment sequence in the full sequence\n')
                 sys.stderr.flush()
-            cCounts = findCountsInRegion(bamF, cInd, len(fullSeq), tcr)
+                cCounts = 'NA'
+            else:
+                cCounts = findCountsInRegion(bamF, cInd, len(fullSeq), tcr)
             if cdrDict[tcr]['CDR3 NT'] != 'NA':
                 cdrInd = fullSeq.find(cdrDict[tcr]['CDR3 NT'].upper())
             else:
@@ -484,8 +489,10 @@ def writeChain(outF, chain,cdrDict,rsemF, bamF, fastaDict, unDict, output, idNam
             if cdrInd != -1:
                 cdrCounts = findCountsInRegion(bamF, cdrInd, cdrInd + len(cdrDict[tcr]['CDR3 NT']), tcr)
                 jStart = cdrInd + len(cdrDict[tcr]['CDR3 NT'])
-
-                jCounts = findCountsInRegion(bamF, jStart, cInd, tcr)
+                if cInd != -1:
+                    jCounts = findCountsInRegion(bamF, jStart, cInd, tcr)
+                else:
+                    jCounts = findCountsInRegion(bamF, jStart, jStart+50, tcr)
                 vCounts = findCountsInRegion(bamF, 0, cdrInd, tcr)
                 fLine += str(cdrCounts) + '\t' + str(vCounts) + '\t' + str(jCounts) + '\t' + str(cCounts) + '\t'
             else:
@@ -682,7 +689,7 @@ def findCDR3(fasta, aaDict, vdjFaDict):
     fDict = dict()
     for record in SeqIO.parse(f, 'fasta'):
         if record.id in fDict:
-            sys.stderr.write(str(datetime.datetime.now()) + ' Error! sane name for two fasta entries %s\n' % record.id)
+            sys.stderr.write(str(datetime.datetime.now()) + ' Error! same name for two fasta entries %s\n' % record.id)
             sys.stderr.flush()
         else:
             idArr = record.id.split('.')
@@ -721,19 +728,21 @@ def getBestJaa(currSeq):
         tempSeq = s[:8]
         indF = tempSeq.find('F')
         if indF != -1:
-            if s[indF+3] == 'G':
-                found = True
-                if indF < pos:
-                    pos = indF
-                    seq = s[indF:]
+            if ((indF+3) <= len(s)):
+                if s[indF+3] == 'G':
+                    found = True
+                    if indF < pos:
+                        pos = indF
+                        seq = s[indF:]
         indG = tempSeq.find('G')
         if (indG != -1):
             if found == False:
-                if s[indG+2] == 'G':
-                    if indG < pos:
-                        found = True
-                        seq = s[indG:]
-                        pos = indG
+                if ((indG + 2) <= len(s)):
+                    if s[indG+2] == 'G':
+                        if indG < pos:
+                            found = True
+                            seq = s[indG:]
+                            pos = indG
     if ((found == False) & (indF != -1)):
         seq = s[indF:]
     if seq != '':
@@ -914,6 +923,8 @@ def getCDR3(aaSeq, vSeq, jSeq):
 
 
 def isLegal(subAA):
+    if (len(subAA)<4):
+        return False
     if ((subAA[0] == 'F') & (subAA[3] == 'G')):
         return True
     if ((subAA[1] == 'G') & (subAA[3] == 'G')):
@@ -1112,78 +1123,141 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, sa
         sys.stdout.flush()
 
 
-def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
+def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cId, oneSide):
     tcrF = open(tcr, 'rU')
     found = False
     ffound = False
     for tcrRecord in SeqIO.parse(tcrF, 'fasta'):
+        addedC = False
         tcrSeq = str(tcrRecord.seq)
         if tcrSeq.find('NNNNN') == -1 :
             if ffound == False:
                 ffound = True
                 outF = open(outName, 'w')
             idArr = tcrRecord.id.split('.')
-
             vEns = idArr[0]
             jEns = idArr[1].split('(')[0]
             vSeq = fastaDict[vEns]
             jSeq = fastaDict[jEns]
-            vSeqTrim = ''
-            jSeqTrim = ''
-            if bases == -10:
-                bases = min(len(vSeq), len(jSeq))
-            found = False
-            for i in reversed(range(20,bases)):
-                juncStart = tcrSeq[:i]
-                vInd = vSeq.find(juncStart)
-                if (vInd != -1):
-                    found = True
-                    vSeqTrim = vSeq[:vInd]
-                    break
-            if found == False:
-                vSeqTrim = vSeq[:-bases]
-            found = False
-            for j in reversed(range(20,bases)):
-                juncEnd = tcrSeq[-j:]
-                jInd = jSeq.find(juncEnd)
-                if (jInd != -1):
-                    found = True
-                    jSeqTrim = jSeq[jInd + j:]
-                    break
-            if found == False:
-                jSeqTrim = jSeq[bases:]
-            # Add TRBC or TRAC
-            cArr = []
-            if (str(tcrRecord.id).find('TRB')!= -1):
-                for ens in mapDict:
-                    if mapDict[ens].find('TRBC') != -1:
-                        cArr.append(ens)
-            elif (str(tcrRecord.id).find('TRA')!= -1):
-                for ens in mapDict:
-                    if mapDict[ens].find('TRAC') != -1:
-                        cArr.append(ens)
-            else:
-                sys.stderr.write(str(datetime.datetime.now()) + " Error! no TRBC or TRAC\n")
-                sys.stderr.flush()
-            for ens in cArr:
-                cSeq = fastaDict[ens]
-                newSeq = vSeqTrim + tcrSeq + jSeqTrim + cSeq
-                newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + mapDict[ens] + '.' + vEns + '.' + jEns + '.' + ens
-                record = SeqRecord(Seq(newSeq,IUPAC.ambiguous_dna), id = newId, description = '')
-                SeqIO.write(record,outF,'fasta')
+            writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF)
+        elif oneSide:
+            curSeq = tcrSeq.split('NNNN')[0]
+            jSeg = findBestJforSeq(curSeq,fastaDict,mapDict)
+            if jSeg != 'NA':
+                if ffound == False:
+                    ffound = True
+                    outF = open(outName, 'w')
+                idArr = tcrRecord.id.split('.')
+                vEns = idArr[0]
+                vSeq = fastaDict[vEns]
+                for jEns in jSeg:
+                    jSeq = fastaDict[jEns]
+                    writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF)
     tcrF.close()
     if found == True:
         outF.close()
 
+def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF):
+    vSeqTrim = ''
+    jSeqTrim = ''
+    if bases == -10:
+        bases = min(len(vSeq), len(jSeq))
+    elif bases > len(jSeq):
+        jSeq = jSeq + cSeq
+        addedC = True
+    found = False
+    for i in reversed(range(20,bases)):
+        juncStart = tcrSeq[:i]
+        vInd = vSeq.find(juncStart)
+        if (vInd != -1):
+            found = True
+            vSeqTrim = vSeq[:vInd]
+            break
+    if found == False:
+        vSeqTrim = vSeq[:-bases]
+    found = False
+    for j in reversed(range(20,bases)):
+        juncEnd = tcrSeq[-j:]
+        jInd = jSeq.find(juncEnd)
+        if (jInd != -1):
+            found = True
+            jSeqTrim = jSeq[jInd + j:]
+            break
+    if found == False:
+        jSeqTrim = jSeq[bases:]
+    # Add TRBC or TRAC
+    cArr = []
+    if (str(tcrRecord.id).find('TRB')!= -1):
+        for ens in mapDict:
+            if mapDict[ens].find('TRBC') != -1:
+                cArr.append(ens)
+    elif (str(tcrRecord.id).find('TRA')!= -1):
+        for ens in mapDict:
+            if mapDict[ens].find('TRAC') != -1:
+                cArr.append(ens)
+    else:
+        sys.stderr.write(str(datetime.datetime.now()) + " Error! no TRBC or TRAC\n")
+        sys.stderr.flush()
+    if not addedC:
+        for ens in cArr:
+            cSeq = fastaDict[ens]
+            newSeq = vSeqTrim + tcrSeq + jSeqTrim + cSeq
+            newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + mapDict[ens] + '.' + vEns + '.' + jEns + '.' + ens
+            record = SeqRecord(Seq(newSeq,IUPAC.ambiguous_dna), id = newId, description = '')
+            SeqIO.write(record,outF,'fasta')
+    else:
+        newSeq = vSeqTrim + tcrSeq + jSeqTrim
+        newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + cName + '.' + vEns + '.' + jEns + '.' + cId
+        record = SeqRecord(Seq(newSeq,IUPAC.ambiguous_dna), id = newId, description = '')
+        SeqIO.write(record,outF,'fasta')
 
-def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ):
-    junctionSegs = makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict)
+
+
+def findBestJforSeq(curSeq,fastaDict,idNameDict):
+    jArrOld = findJsPerLen(curSeq, fastaDict, idNameDict,20)
+    if len(jArrOld) == 0:
+        return 'NA'
+    for x in range(21,len(curSeq)):
+        newArr = findJsPerLen(curSeq, fastaDict, idNameDict,x)
+        if len(newArr) == 0:
+            return jArrOld
+        else:
+            jArrOld = newArr
+    print 'Found a full J segment as the V/J junction, ignoring this reconstruction'
+    return 'NA'
+
+def findJsPerLen(curSeq, fastaDict, idNameDict,trim):
+    fArr = []
+    for seq in fastaDict:
+        if idNameDict[seq].find('J') != -1:
+            jSeq = fastaDict[seq]
+            lenJ = len(jSeq)
+            for i in range(0,lenJ):
+                if ((i + trim) <= lenJ):
+                    trimJ = jSeq[i:i+trim]
+                    if curSeq.find(trimJ) != -1:
+                        if seq not in fArr:
+                            fArr.append(seq)
+                            break
+    return fArr
+
+
+
+
+def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ, top, byExp, readOverlap):
+    junctionSegs = makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict, top, byExp, readOverlap)
     unDict = writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ)
     return unDict
 
+def getCInfo(bedEntry, idNameDict, fastaDict):
+    bedArr = bedEntry.strip('\n').split('\t')
+    cId = bedArr[3]
+    cName = idNameDict[cId]
+    cSeq = fastaDict[cId]
+    return(cSeq,cName,cId)
 
 
-def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
+def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict, top, byExp, readOverlap):
     mappedFile = pysam.AlignmentFile(bam,"rb")
     if chain == 'A':
         vdjChainDict = vdjDict['Alpha']
@@ -1196,19 +1270,20 @@ def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
         sys.stderr.flush()
     jSegs = vdjChainDict['J']
     vSegs = vdjChainDict['V']
+    (cSeq, cId, cName) = getCInfo(vdjChainDict['C'][0], idNameDict, fastaDict)
     vjSegs = []
     for x in jSegs:
         vjSegs.append(x)
     for y in vSegs:
         vjSegs.append(y)
     vjReads = dict()
-    vjReads = loadReadsToDict(vjSegs, mappedFile, vjReads)
-    junctionSegs = writeJunctions(vjReads,outName, bases, fastaDict, idNameDict)
+    (vjReads, vjCounts) = loadReadsToDict(vjSegs, mappedFile, vjReads, readOverlap)
+    junctionSegs = writeJunctions(vjReads,outName, bases, fastaDict, idNameDict, cSeq, top, vjCounts, byExp)
     if len(junctionSegs) == 0:
         sys.stdout.write(str(datetime.datetime.now()) + ' Did not find any V-J reads, searching for V-C and J-C reads:\n')
         sys.stdout.flush()
         cReads = dict()
-        cReads = loadReadsToDict(vdjChainDict['C'], mappedFile, cReads)
+        (cReads, cCountsDict) = loadReadsToDict(vdjChainDict['C'], mappedFile, cReads, readOverlap)
         junctionSegs = writeJunctionsWithC(vjReads,outName, bases, fastaDict, idNameDict, cReads)
     mappedFile.close()
     return junctionSegs
@@ -1270,7 +1345,8 @@ def writeJunctionsWithC(vjReads,outName, bases, fastaDict, idNameDict, cReads):
 #       readDict: A dictionary. The keys are the segment name, the values is a dictionary 'first':[] and 'second':[]
 #                 where 'first' array holds the query name of R1's that overlap this segment, and 'second' holds the
 #                 query name of R2's that overlap the segment.
-def loadReadsToDict(segsDict, mappedFile, readDict):
+def loadReadsToDict(segsDict, mappedFile, readDict, readOverlap):
+    countDict = dict()
     for seg in segsDict:
         lArr = seg.strip('\n').split('\t')
         segName = lArr[3]
@@ -1280,15 +1356,23 @@ def loadReadsToDict(segsDict, mappedFile, readDict):
         start = int(lArr[1])
         end = int(lArr[2])
         readsIter = mappedFile.fetch(chr, start-1, end+1)
+        readCounter = 0
         for read in readsIter:
-            currName = read.query_name
-            if read.is_read1:
-                if currName not in readDict[segName]['first']:
-                    readDict[segName]['first'].append(currName)
-            elif read.is_read2:
-                if currName not in readDict[segName]['second']:
-                    readDict[segName]['second'].append(currName)
-    return readDict
+            overlap = read.get_overlap(start-1,end+1)
+            if (end-start) < readOverlap:
+                readOverlap = end-start-15
+            if overlap >= readOverlap:
+                currName = read.query_name
+                if read.is_read1:
+                    if currName not in readDict[segName]['first']:
+                        readDict[segName]['first'].append(currName)
+                        readCounter += 1
+                elif read.is_read2:
+                    if currName not in readDict[segName]['second']:
+                        readDict[segName]['second'].append(currName)
+                        readCounter += 1
+        countDict[segName] = readCounter
+    return (readDict, countDict)
 
 
 def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ):
@@ -1553,9 +1637,10 @@ def toTakePair(segType, strand, readStrand):
     return True
 
 
-def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
+def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict, cSeq, top, vjCountsDict, byExp):
     out = open(outName,'w')
     fArr = []
+    pairCountDict = dict()
     for seg in vjReads:
         if idNameDict[seg].find('J') != -1 :
             if len(vjReads[seg]) > 0 :
@@ -1572,9 +1657,15 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
                             lenSeg = min(len(vSeq),len(jSeq))
                             if bases != -10:
                                 if lenSeg < bases:
-                                    sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
-                                          'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
-                                    sys.stdout.flush()
+                                    if bases > len(vSeq):
+                                        sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V segment, taking the length' \
+                                              'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
+                                        sys.stdout.flush()
+                                    else:
+                                        sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the J segment, appending the C segment to the J segment\n')
+                                        sys.stdout.flush()
+                                        jSeq = jSeq + cSeq
+                                        lenSeg = bases
                                 else:
                                     lenSeg = bases
                             jTrim = jSeq[:lenSeg]
@@ -1582,7 +1673,35 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
                             junc = vTrim + jTrim
                             recordName = sSeg + '.' + seg + '(' + idNameDict[sSeg] + '-' + idNameDict[seg] + ')'
                             record = SeqRecord(Seq(junc,IUPAC.ambiguous_dna), id = recordName, description = '')
-                            SeqIO.write(record,out,'fasta')
+                            curCont = vjCountsDict[seg] + vjCountsDict[sSeg]
+                            pairCountDict[record] = curCont
+    sorted_pairs = sorted(pairCountDict.items(), key=operator.itemgetter(1), reverse=True)
+    if ((top == -1) | top > len(sorted_pairs)):
+        for rec in pairCountDict:
+            SeqIO.write(rec ,out,'fasta')
+    else:
+        if not byExp:
+            for i in range(0,top):
+                SeqIO.write(sorted_pairs[i][0],out,'fasta')
+        else:
+            wrote = 1
+            SeqIO.write(sorted_pairs[0][0],out,'fasta')
+            curCount = sorted_pairs[0][1]
+            wroteSecond = False
+            for i in range(1,len(sorted_pairs)):
+                if sorted_pairs[i][1] == curCount:
+                    if not wroteSecond:
+                        wroteSecond = True
+                        SeqIO.write(sorted_pairs[i][0],out,'fasta')
+                        wrote += 1
+                else:
+                    curCount = sorted_pairs[i][1]
+                    wroteSecond = False
+                    SeqIO.write(sorted_pairs[i][0],out,'fasta')
+                    wrote += 1
+                if wrote == top:
+                    break
+
     out.close()
     return fArr
 
@@ -1676,6 +1795,7 @@ if __name__ == '__main__':
                                                         'it will ignore -path and -subpath arguments', action='store_true')
     parser.add_argument('-lowQ', help='add if you want to add \"low quality\" reads as input to the reconstruction '
                                                         'algorithm', action='store_true')
+    parser.add_argument('-oneSide', help='add if you want to observe reconstrctuion only from the V side', action='store_true')
     parser.add_argument('-path','-p','-P', help='The path for the data directory. Assumes that every subdirectory'
                                                     'is a single cell', default='')
     parser.add_argument('-sumF', help='prefix for summary outputs', default='')
@@ -1693,10 +1813,18 @@ if __name__ == '__main__':
                                                               'algorithm, default is 20', type=int, default=20)
     parser.add_argument('-samtools', help='Path to samtools. If not used assumes that samtools is in the default path', default = '')
     parser.add_argument('-score','-sc','-SC', help='Alignment score threshold. Default is 15', type=int, default=15)
+    parser.add_argument('-top','-t','-T', help='Take only the top x combination of V and J, based on the sum '
+                                               'number of reads that map to both. Default is to take all', type=int, default=-1)
+    parser.add_argument('-readOverlap','-ro','-readoverlap', help='Add a read to list of mapped reads only if it maps at least X bases'
+                                               'to the V/J/C segment. Default is 1', type=int, default=1)
+    parser.add_argument('-byExp', help='if using the Top option, add this tag if you want to take only two chains from each'\
+                                                        'read count, until top is reached', action='store_true')
+
     parser.add_argument('-overlap','-ol','-OL', help='Number of minimum bases that overlaps V and J ends,'
                                                               'default is 10', type=int, default=10)
     args = parser.parse_args()
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
-                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools)
+                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools, args.top, args.byExp, args.readOverlap,
+                  args.oneSide)
 
