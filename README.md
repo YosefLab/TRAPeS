@@ -4,7 +4,7 @@ We present TRAPeS (TCR Reconstruction Algorithm for Paired-End Single-cell), a s
 
 TRAPeS reconstruct the TCR in 3 steps: For each chain, it first identify the V and J segments by searching for paired reads with one read mapping to the V segment and its mate mapping to the J segment. Then, a set of putative CDR3-originating reads are identified as the set of unmapped reads whose mates map to the V,J and C segments. Finally, an iterative dynamic programming algorithm is used to reconstruct the CDR3 region with the putative CDR3 reads. <br />  
 
-For more information, see our bioRxiv preprint for TRAPeS [here] (http://biorxiv.org/content/early/2016/08/31/072744)
+For more information, see our bioRxiv preprint for TRAPeS [here](http://biorxiv.org/content/early/2016/08/31/072744)
 
 ##installing TRAPeS <br />  
 
@@ -64,6 +64,8 @@ To display help: <br />
 -top: Rank all the V-J pairs based on the number of mapped reads, and reconstruct only the top X number of V-J pairs. Default: reconstruct all V-J pairs. Recommended for very deep libraries or libraries when there are many possible V-J pairing. <br />
 
 -byExp: Must be used along with the top parameter. Rank all the V-J pairs based on the number of mapped reads, but instead of reconstructing only the top X number of V-J pairs, randomly choose 2 V-J pairs with the same rank (same number of mapped reads) and reconstruct them. Then TRAPeS will move on to the next rank until the number of V-J pairs specified with top has been reconstructed. Default: off. <br />
+
+-oneSide: Add this parameter to also search for productive reconstructions only from the extended V segment (in case of no overlap between the extended V and extended J segments). Default: off. <br />
 
 -readOverlap: Consider only reads with that number of bases overlapping V/J/C segments as mapped reads. Default: 1. Note: This parameter is still being tested <br />
 
