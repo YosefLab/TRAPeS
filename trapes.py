@@ -112,6 +112,11 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
                     msgA = 'Productive'
                 else:
                     msgB = 'Productive'
+            elif stat == 'Productive (no 118 PHE found)':
+                if chain == 'alpha':
+                    msgA = 'Productive (no 118 PHE found)'
+                else:
+                    msgB = 'Productive (no 118 PHE found)'
             elif stat.startswith('Unproductive'):
                 if chain == 'alpha':
                     if msgA != 'Productive':
@@ -471,7 +476,10 @@ def writeChain(outF, chain,cdrDict,rsemF, bamF, fastaDict, unDict, output, idNam
         if not noRsem:
             totalCount = findCountsInRegion(bamF, 0, len(fullSeq), tcr)
             fLine += str(totalCount) + '\t'
-            cSeq = fastaDict[nameArr[5]].upper()
+            cName = nameArr[5]
+            while cName.endswith('_2'):
+                cName = cName[:-2]
+            cSeq = fastaDict[cName].upper()
             cInd = fullSeq.find(cSeq)
             if cInd == -1:
                 sys.stderr.write(str(datetime.datetime.now()) + 'Error! could not find C segment sequence in the full sequence\n')
@@ -804,10 +812,12 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
     aaSeqsArr = [firstSeq, secondSeq, thirdSeq]
     cdrArr = []
     posArr = []
+    fPharr = []
     for aaSeq in aaSeqsArr:
-        (cdr, pos) = getCDR3(aaSeq, vSeg,jSeg)
+        (cdr, pos, curPh) = getCDR3(aaSeq, vSeg,jSeg)
         cdrArr.append(cdr)
         posArr.append(pos)
+        fPharr.append(curPh)
     maxLen = 0
     bestCDR = ''
     bestSeq = ''
@@ -817,6 +827,7 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
     foundGood = False
     vPos = -1
     jPos = -1
+    fPh = False
     for i in range(0,3):
         if posArr[i] != -1:
             if ((cdrArr[i] != 'Only J') & (cdrArr[i] != 'Only V')):
@@ -827,6 +838,7 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
                         bestPos = posArr[i]
                         maxLen = len(cdrArr[i])
                         bestSeq = ntArr[i]
+                        fPh = fPharr[i]
                     else:
                         if maxLen == 0:
                             foundGood = True
@@ -835,6 +847,7 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
                             maxLen = len(cdrArr[i])
                             bestSeq = ntArr[i]
                             hasStop = True
+                            fPh = fPharr[i]
                 else:
                     if hasStop == True:
                         if cdrArr[i].find('*') == -1:
@@ -844,8 +857,10 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
                             bestCDR = cdrArr[i]
                             maxLen = len(cdrArr[i])
                             bestSeq = ntArr[i]
+                            fPh = fPharr[i]
             else:
                 if not foundGood:
+                    fPh = fPharr[i]
                     if (cdrArr[i] == 'Only J'):
                         jPos = posArr[i]-i
                     elif (cdrArr[i] == 'Only V'):
@@ -857,6 +872,8 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
         bestCDRnt = bestSeq[3*bestPos : 3*bestPos+3*len(bestCDR)]
     if bestCDR.find('*') != -1:
         stat = 'Unproductive - stop codon'
+    elif fPh:
+        stat = 'Productive (no 118 PHE found)'
     else:
         stat = 'Productive'
     if maxLen == 0:
@@ -897,7 +914,8 @@ def getCDR3(aaSeq, vSeq, jSeq):
             minDist = dist
             pos = i + len(vSeq)
     jPos = -1
-    minDistJ = 2
+    minDistJ = 4
+    curPh = False
     for j in range(pos+1, len(aaSeq) - len(jSeq) + 1):
         subAA = aaSeq[j: j + len(jSeq)]
         if len(subAA) != len(jSeq):
@@ -911,23 +929,36 @@ def getCDR3(aaSeq, vSeq, jSeq):
             if isLegal(subAA):
                 jPos = j
                 minDistJ = dist
+                curPh = False
+            else:
+                if dist < minDistJ:
+                    curPh = True
+                    jPos = j
+                    minDistJ = dist
     if pos == -1:
         if jPos != -1:
-            return('Only J', jPos)
+            return('Only J', jPos, curPh)
         else:
-            return('No V/J found', -1)
+            return('No V/J found', -1, curPh)
     else:
         if jPos == -1:
-            return('Only V',pos)
-    return(aaSeq[pos:jPos], pos)
+            return('Only V',pos, curPh)
+    return(aaSeq[pos:jPos], pos, curPh )
 
-
+# Checks that the conserved amino acids remain
 def isLegal(subAA):
     if (len(subAA)<4):
         return False
-    if ((subAA[0] == 'F') & (subAA[3] == 'G')):
-        return True
+    if (subAA[0] == 'F'):
+        if ((subAA[1] == 'G') | (subAA[3] == 'G')):
+            return True
     if ((subAA[1] == 'G') & (subAA[3] == 'G')):
+        return True
+    if ((subAA[0] == 'G') & (subAA[2] == 'G')):
+        return True
+    if subAA.startswith('GR'):
+        return True
+    if subAA.startswith('SR'):
         return True
     return False
 
@@ -1127,6 +1158,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cI
     tcrF = open(tcr, 'rU')
     found = False
     ffound = False
+    recNameArr = []
     for tcrRecord in SeqIO.parse(tcrF, 'fasta'):
         addedC = False
         tcrSeq = str(tcrRecord.seq)
@@ -1139,7 +1171,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cI
             jEns = idArr[1].split('(')[0]
             vSeq = fastaDict[vEns]
             jSeq = fastaDict[jEns]
-            writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict)
+            recNameArr = writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict, recNameArr)
         elif oneSide:
             curSeq = tcrSeq.split('NNNN')[0]
             jSeg = findBestJforSeq(curSeq,fastaDict,mapDict)
@@ -1152,12 +1184,12 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cI
                 vSeq = fastaDict[vEns]
                 for jEns in jSeg:
                     jSeq = fastaDict[jEns]
-                    writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict)
+                    recNameArr = writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict,bases, cSeq, cId, cName, outF,fastaDict, recNameArr)
     tcrF.close()
     if found == True:
         outF.close()
 
-def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF,fastaDict):
+def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF,fastaDict, recNameArr):
     vSeqTrim = ''
     jSeqTrim = ''
     if bases == -10:
@@ -1203,13 +1235,20 @@ def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, base
             cSeq = fastaDict[ens]
             newSeq = vSeqTrim + tcrSeq + jSeqTrim + cSeq
             newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + mapDict[ens] + '.' + vEns + '.' + jEns + '.' + ens
+            while newId in recNameArr:
+                newId += '_2'
+            recNameArr.append(newId)
             record = SeqRecord(Seq(newSeq,IUPAC.ambiguous_dna), id = newId, description = '')
             SeqIO.write(record,outF,'fasta')
     else:
         newSeq = vSeqTrim + tcrSeq + jSeqTrim
         newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + cName + '.' + vEns + '.' + jEns + '.' + cId
+        while newId in recNameArr:
+            newId += '_2'
+        recNameArr.append(newId)
         record = SeqRecord(Seq(newSeq,IUPAC.ambiguous_dna), id = newId, description = '')
         SeqIO.write(record,outF,'fasta')
+    return recNameArr
 
 
 
@@ -1676,7 +1715,7 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict, cSeq, top, vjC
                             curCont = vjCountsDict[seg] + vjCountsDict[sSeg]
                             pairCountDict[record] = curCont
     sorted_pairs = sorted(pairCountDict.items(), key=operator.itemgetter(1), reverse=True)
-    if ((top == -1) | top > len(sorted_pairs)):
+    if ((top == -1) | (top > len(sorted_pairs))):
         for rec in pairCountDict:
             SeqIO.write(rec ,out,'fasta')
     else:
@@ -1790,7 +1829,7 @@ def checkParameters(genome, strand, singleCell, path, sumF):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-genome','-g','-G', help='Alignment genome. Currently supported: mm10 and hg38', required=True)
+    parser.add_argument('-genome','-g','-G', help='Alignment genome. Currently supported: mm10, mm10_ncbi and hg38', required=True)
     parser.add_argument('-singleCell', help='add if you are only running on a single cell. If so,'
                                                         'it will ignore -path and -subpath arguments', action='store_true')
     parser.add_argument('-lowQ', help='add if you want to add \"low quality\" reads as input to the reconstruction '
