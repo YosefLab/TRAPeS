@@ -4,7 +4,7 @@ We present TRAPeS (TCR Reconstruction Algorithm for Paired-End Single-cell), a s
 
 TRAPeS reconstruct the TCR in 3 steps: For each chain, it first identify the V and J segments by searching for paired reads with one read mapping to the V segment and its mate mapping to the J segment. Then, a set of putative CDR3-originating reads are identified as the set of unmapped reads whose mates map to the V,J and C segments. Finally, an iterative dynamic programming algorithm is used to reconstruct the CDR3 region with the putative CDR3 reads. <br />  
 
-For more information, see our bioRxiv preprint for TRAPeS [here](http://biorxiv.org/content/early/2016/08/31/072744)
+For more information, see our paper in *Nucleic Acids Research* [here](https://academic.oup.com/nar/article-lookup/doi/10.1093/nar/gkx615) or our bioRxiv preprint [here](http://biorxiv.org/content/early/2016/08/31/072744)
 
 ##installing TRAPeS <br />  
 
