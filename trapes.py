@@ -1093,7 +1093,7 @@ def findBestC(vjArr, rsemF):
 def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools):
     if samtools != '':
         if samtools[-1] != '/':
-            rsem += '/'
+            samtools += '/'
     rsemIndDir = outDir + 'rsem_ind'
     if os.path.exists(rsemIndDir) == False:
         os.makedirs(rsemIndDir)
