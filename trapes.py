@@ -655,7 +655,10 @@ def getUnDictRatio(bamF, start, end, tcr, unDict):
             if newName in unDict:
                 unMappedCount += 1
     mappedFile.close()
-    return (float(float(unMappedCount)/len(unDict)), unMappedCount)
+    if len(unDict) == 0:
+        return(0,unMappedCount)
+    else:
+        return (float(float(unMappedCount)/len(unDict)), unMappedCount)
 
 
 def findCountsInRegion(bamF, start, end, tcr):
