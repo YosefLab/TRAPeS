@@ -8,7 +8,7 @@ For more information, see our paper in *Nucleic Acids Research* [here](https://a
 
 ##installing TRAPeS <br />  
 
-TRAPeS is written in Python and C++, and currently works on Linux (a version for OSX will be published soon). TRAPeS require the following python libraries: <br />  
+TRAPeS is written in Python and C++, and currently works on Linux. TRAPeS require the following python libraries: <br />  
 
 -	biopython  <br />
 -	pysam  <br />
