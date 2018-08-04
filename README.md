@@ -39,7 +39,7 @@ To display help: <br />
 **Input files:** <br />
 <br />
 
--path : The for the folder with all the single cell samples. Assumes every subfolder under this path is a folder of a single cell sequencing results. <br />
+-path : The folder with all the single cell samples. Assumes every subfolder under this path is a folder of a single cell sequencing results. <br />
 -bam : The location of the sorted mapped bam file relative to the single cell folder. For example, if under each single cell folder there is a subfolder named “TopHat\_Output” and the mapped file is under that folder and named mapped.bam, the command should read “–bam TopHat\_Output/mapped.bam”. <br />
 -unmapped : the location of the bam file containing the unmapped reads. Similar to the –bam tag, it is relative to the single cell folder. <br />
 <br />
