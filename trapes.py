@@ -14,8 +14,8 @@ from Bio.Alphabet import IUPAC
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
-def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, top, byExp, readOverlap, oneSide):
-    checkParameters(genome, strand, singleCell, path, sumF)
+def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, top, byExp, readOverlap, oneSide, Aminus, Bminus):
+    checkParameters(strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
         #runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
@@ -28,6 +28,8 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     finalStatDict = dict()
     tcrFout = open(sumF + '.TCRs.txt','w')
     opened = False
+    currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
+    (fasta, bed, mapping, aaF) = getGenomeFiles(currFolder, genome)
     for cellFolder in os.listdir(path):
         fullPath = path + cellFolder + '/'
         if((os.path.exists(fullPath)) & (os.path.isdir(fullPath))):
@@ -39,31 +41,10 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                                                                 "this folder, moving to the next folder\n")
                 sys.stderr.flush()
             else:
-                currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-                reconstruction = currFolder + '/vdj.alignment'
-                if genome == 'hg38':
-                    fasta = currFolder + 'Data/hg38/hg38.TCR.fa'
-                    bed = currFolder + 'Data/hg38/hg38.TCR.bed'
-                    mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
-                if genome == 'mm10':
-                    fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
-                if genome == 'mm10_ncbi':
-                    fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
-                if genome == 'hg19':
-                    fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
-                    bed = currFolder + 'Data/hg19/hg19.TCR.bed'
-                    mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
-
+                #reconstruction = currFolder + '/vdj.alignment'
+                reconstruction = currFolder + '/vdj.alignment.tcr'
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide)
+                            minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide, Aminus, Bminus, genome)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -72,6 +53,37 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
         fout = cell + '\t' + finalStatDict[cell]['alpha'] + '\t' + finalStatDict[cell]['beta'] + '\n'
         sumFout.write(fout)
     sumFout.close()
+
+
+def getGenomeFiles(currFolder, genome):
+    dataFold = currFolder + 'Data/' + genome + '/'
+    fasta = 'NA'
+    bed = 'NA'
+    mapping = 'NA'
+    aaF = 'NA'
+    if os.path.isdir(dataFold):
+        for ff in os.listdir(dataFold):
+            if not ff.startswith('.'):
+                if ff.endswith('TCR.bed'):
+                    bed = dataFold + ff
+                elif ff.endswith('conserved.AA.txt'):
+                    aaF = dataFold + ff
+                elif ff.endswith('TCR.fa'):
+                    fasta = dataFold + ff
+                elif ff.endswith('gene.id.mapping.TCR.txt'):
+                    mapping = dataFold + ff
+        if (fasta == 'NA'):
+            sys.exit(str(datetime.datetime.now()) + " Error! TCR fasta file is missing in the Data/genome folder\n")
+        if (mapping == 'NA'):
+            sys.exit(str(datetime.datetime.now()) + " Error! TCR gene id mapping file is missing in the Data/genome folder\n")
+        if (bed == 'NA'):
+            sys.exit(str(datetime.datetime.now()) + " Error! TCR bed file is missing in the Data/genome folder\n")
+        if (aaF == 'NA'):
+            sys.exit(str(datetime.datetime.now()) + " Error! TCR conserved AA file is missing in the Data/genome folder\n")
+    else:
+        sys.exit(str(datetime.datetime.now()) + " Error! Genome parameter is invalid, no folder named: " + dataFold + '\n')
+
+    return(fasta, bed, mapping, aaF)
 
 
 def addCellToTCRsum(cellFolder, noutput, opened, tcrFout):
@@ -217,16 +229,16 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide):
+                  rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide, Aminus, Bminus, organism):
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top, byExp, readOverlap)
+    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top, byExp, readOverlap, Aminus, Bminus, organism)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
     sys.stdout.flush()
-    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top, byExp, readOverlap)
+    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top, byExp, readOverlap, Aminus, Bminus, organism)
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
@@ -1286,9 +1298,9 @@ def findJsPerLen(curSeq, fastaDict, idNameDict,trim):
 
 
 
-def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ, top, byExp, readOverlap):
+def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ, top, byExp, readOverlap, Aminus, Bminus, organism):
     junctionSegs = makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict, top, byExp, readOverlap)
-    unDict = writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ)
+    unDict = writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ, Aminus, Bminus, organism)
     return unDict
 
 def getCInfo(bedEntry, idNameDict, fastaDict):
@@ -1417,7 +1429,7 @@ def loadReadsToDict(segsDict, mappedFile, readDict, readOverlap):
     return (readDict, countDict)
 
 
-def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ):
+def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ, Aminus, Bminus, organism):
     if chain == 'A':
         vdjChainDict = vdjDict['Alpha']
         outReads = output + '.alpha.mapped.and.unmapped.fa'
@@ -1456,7 +1468,7 @@ def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, 
         if jSegName in junctionSegs:
             (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, jSeg, bam, out, True, alignedDict, seqDict, strand, 'J', mappedPairsDict, lowQDict)
     unDict = dict()
-    (seqDict,unDict) = writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ)
+    (seqDict,unDict) = writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ, Aminus, Bminus, organism, chain)
     seqDict = addMappedPairsToSeqDict(seqDict, bam, out, lowQ, alignedDict)
     writeSeqDict(seqDict, pairedReads1, pairedReads2)
     out.close()
@@ -1537,7 +1549,7 @@ def writeSeqDict(seqDict, r1, r2):
     r1f.close()
     r2f.close()
 
-def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ):
+def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ, Aminus, Bminus, organism, chain):
     f = pysam.AlignmentFile(unmapped,"rb")
     readsIter = f.fetch(until_eof = True)
     for read in readsIter:
@@ -1563,6 +1575,9 @@ def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict
                 qSeq = Seq(read.query_sequence, IUPAC.ambiguous_dna)
                 if ori == 'rev':
                     qSeq = qSeq.reverse_complement()
+                if organism not in ['mm10','mm10_ncbi','hg38','hg19']:
+                    if (((chain == 'A') & (Aminus)) | ((chain == 'B') & (Bminus))):
+                        qSeq = qSeq.reverse_complement()
                 if name in alignedDict:
                     if alignedDict[name] != str(qSeq):
                         sys.stderr.write(str(datetime.datetime.now()) + ' Error! unmapped read %s appear twice in alignedDict with differnet seqs\n' % name)
@@ -1814,9 +1829,7 @@ def makeIdNameDict(mapping):
     return fDict
 
 
-def checkParameters(genome, strand, singleCell, path, sumF):
-    if ((genome != 'hg38') & (genome != 'mm10') & (genome != 'hg19') & (genome != 'mm10_ncbi')):
-        sys.exit("-genome only accept one of the following: mm10, mm10_ncbi, hg38, hg19")
+def checkParameters(strand, singleCell, path, sumF):
     if strand.lower() not in ['none','minus','plus']:
         sys.exit("-strand should be one of: none, minus, plus")
     if not singleCell:
@@ -1866,9 +1879,14 @@ if __name__ == '__main__':
 
     parser.add_argument('-overlap','-ol','-OL', help='Number of minimum bases that overlaps V and J ends,'
                                                               'default is 10', type=int, default=10)
+    parser.add_argument('-Aminus', help='Only when running TRAPeS on user defined genomes. Add this flag if the annotation of the V/J segmenets'\
+                                                        'of the alpha chain are on the negative strand', action='store_true')
+    parser.add_argument('-Bminus', help='Only when running TRAPeS on user defined genomes. Add this flag if the annotation of the V/J segmenets'\
+                                                        'of the beta chain are on the negative strand', action='store_true')
+
     args = parser.parse_args()
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
                   args.singleCell, args.path, args.sumF, args.lowQ, args.samtools, args.top, args.byExp, args.readOverlap,
-                  args.oneSide)
+                  args.oneSide, args.Aminus, args.Bminus)
 
