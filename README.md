@@ -83,7 +83,7 @@ To display help: <br />
 <br />
 -singleCell : Add this tag if you are only running TRAPeS on a single cell (not a library of many single cells). Currently not active <br />
 
--genome : The genome used for genomic alignment. By default, TRAPeS only supports hg19, hg38 and mm10, and for mm10 with NCBI chromosome naming use mm10_ncbi. However, TRAPeS can be used for any genome or any organism, as long as the genomic annotations for the V/J/C segments are available. In order to run TRAPeS on genomes besides mm10, hg19 or hg38, the user must create the relevant annotation files [(see here for more information](https://github.com/YosefLab/TRAPeS/blob/master/Data/README.md). In addition, this will require to add the '-Aminus'/'-Bminus' parameters if necessary. <br />
+-genome : The genome used for genomic alignment. By default, TRAPeS only supports hg19, hg38 and mm10, and for mm10 with NCBI chromosome naming use mm10_ncbi. However, TRAPeS can be used for any genome or any organism, as long as the genomic annotations for the V/J/C segments are available. In order to run TRAPeS on genomes besides mm10, hg19 or hg38, the user must create the relevant annotation files [(see here for more information)](https://github.com/YosefLab/TRAPeS/blob/master/Data/README.md). In addition, this will require to add the '-Aminus'/'-Bminus' parameters if necessary. <br />
 
 -Aminus: Only used for user supplied genomes. Add this flag if the (majority) of V and J annotations of the alpha chain are on the minus strand. <br />
 -Bminus: Only used for user supplied genomes. Add this flag if the (majority) of V and J annotations of the beta chain are on the minus strand. <br />
