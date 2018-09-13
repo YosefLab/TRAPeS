@@ -1783,14 +1783,18 @@ def makeVDJBedDict(bed,idNameDict):
         elif (gName.startswith('TRB')):
             chain = 'Beta'
         else:
+            chain = 'noChain'
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! %s name is not alpha or beta chain, ignoring it\n' % gName)
             sys.stderr.flush()
         if gName.find('C') != -1:
-            fDict[chain]['C'].append(l)
+            if chain != 'noChain':
+                fDict[chain]['C'].append(l)
         elif gName.find('V') != -1:
-            fDict[chain]['V'].append(l)
+            if chain != 'noChain':
+                fDict[chain]['V'].append(l)
         elif gName.find('J') != -1:
-            fDict[chain]['J'].append(l)
+            if chain != 'noChain':
+                fDict[chain]['J'].append(l)
         l = f.readline()
     f.close()
     return fDict
