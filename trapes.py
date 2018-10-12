@@ -1109,7 +1109,7 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, sa
     if samtools != '':
         if samtools[-1] != '/':
             samtools += '/'
-    rsemIndDir = outDir + 'rsem_ind'
+    rsemIndDir = outDir + 'rsem_ind' + str(random.randint(1,1000000))
     if os.path.exists(rsemIndDir) == False:
         os.makedirs(rsemIndDir)
     if rsem != '':
