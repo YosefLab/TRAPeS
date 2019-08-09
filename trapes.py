@@ -1864,7 +1864,7 @@ if __name__ == '__main__':
     parser.add_argument('-bowtie2','-bw','-BW', help='Path to bowtie2. If not used assumes that bowtie2 is in the'
                                                  'default path', default = '')
     parser.add_argument('-rsem','-RSEM', help='Path to rsem. If not used assumes that rsem is in the'
-                                                'default path', default = '/data/yosef/users/safik/bin/rsem-1.2.21/')
+                                                'default path', default = '')
     parser.add_argument('-strand', help='Strand of the right most read in genomic coordinates. Options are: [minus, plus, '
                                         'none]. Defualt is minus', default = 'minus')
     parser.add_argument('-output','-out','-o','-O', help='output prefix, relative to /path/singleCellFolder', required=True)
