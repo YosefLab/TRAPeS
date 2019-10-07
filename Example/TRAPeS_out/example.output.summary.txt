@@ -1,0 +1,2 @@
+sample	alpha	beta
+HCV_G04	Productive	Productive
