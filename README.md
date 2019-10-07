@@ -33,6 +33,20 @@ To run TRAPeS, simply run:<br />
 To display help: <br />
 
 >python  trapes.py -h <br />
+
+## Testing TRAPeS
+To test that TRAPeS is installed correctly, run the following command:
+
+>python /path-to-TRAPeS/trapes.py -genome hg38 -path /path-to-TRAPeS/Example/proc_data/ -sumF /path-to-TRAPeS/Example/TRAPeS_out/TCR.out -output TRAPeS_out/TCR.out -score 15 -unmapped unmapped.bam -bam sorted.bam
+ 
+ This should produce the following files: <br />
+ /path-to-TRAPeS/Example/TRAPeS_out/TCR.out.summary.txt <br />
+ /path-to-TRAPeS/Example/TRAPeS_out/TCR.out.TCRs.txt <br />
+ <br />
+ which should be similar to the files: <br />
+ /path-to-TRAPeS/Example/TRAPeS_out/example.output.summary.txt <br />
+ /path-to-TRAPeS/Example/TRAPeS_out/example.output.TCRs.txt <br />
+ <br />
  
 ###Options when running TRAPeS <br />
 
