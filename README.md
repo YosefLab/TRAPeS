@@ -48,6 +48,8 @@ To test that TRAPeS is installed correctly, run the following command:
  /path-to-TRAPeS/Example/TRAPeS_out/example.output.TCRs.txt <br />
  <br />
  
+ **Please note:** in order to download the large example bam files, use [git lft] (https://www.atlassian.com/git/tutorials/git-lfs) when cloning the repository.  
+ <br />
 ###Options when running TRAPeS <br />
 
 **Input files:** <br />
